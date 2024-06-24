@@ -72,11 +72,12 @@ jobs:
 
       - name: Build Release Markdown
         run: |
-          [[ ${{ github.event_name }} == 'workflow_dispatch' && inputs.tag != '' ]]; then
-            TAG=${{ inputs.tag }}
+          if [[ ${{ github.event_name == 'workflow_dispatch' && inputs.tag  != '' }} ]]; then
+            TAG="${{ inputs.tag }}""
           else
-            TAG=$(${{ github.ref }} | sed 's/refs\/tags\///')
+            TAG="$(echo ${{ github.ref }} | sed 's/refs\/tags\///')""
           fi
+
           echo "## IVPN for Desktop - Community Build for linux/aarch64 $TAG" > buildoutput/release.md
           echo "" >> buildoutput/release.md
           echo "### Buildtime: $(date)" >> buildoutput/release.md
@@ -86,7 +87,7 @@ jobs:
           echo "---- | ------" >> buildoutput/release.md
           cat buildoutput/sha256sums.txt | awk '{print $2 " | " $1}' >> buildoutput/release.md
           echo "" >> buildoutput/release.md
-          echo "[Official Changelog](https://github.com/ivpn/desktop-app/blob/master/CHANGELOG.md)
+          echo "[Official Changelog](https://github.com/ivpn/desktop-app/blob/master/CHANGELOG.md)" >> buildoutput/release.md
           echo "" >> buildoutput/release.md
 
           echo "::debug ::release markdown created at buildoutput/release.md"
@@ -95,11 +96,14 @@ jobs:
       - name: upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          path: buildoutput/*.tar.gz, buildoutput/sha256sums.txt, buildoutput/release.md
+          path: |
+            buildoutput/*.tar.gz
+            buildoutput/sha256sums.txt
+            buildoutput/release.md
 
       - name: upload new release
         if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && inputs.tag != '')}}
         uses: ncipollo/release-action@v1
         with:
           artifacts: buildoutput/*.tar.gz, buildoutput/sha256sums.txt
-          body: buildoutput/release.md
+          bodyFile: buildoutput/release.md
