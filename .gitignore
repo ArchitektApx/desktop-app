@@ -15,3 +15,6 @@ daemon/References/Windows/v2ray/v2ray.exe
 ui/build
 ui/out/
 ui/References/macOS/HelperProjects/launchAgent/_out
+.actrc
+.secrets
+.env

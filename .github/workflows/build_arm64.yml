@@ -1,0 +1,62 @@
+name: shimbuild
+on: [workflow_dispatch]
+
+jobs:
+  aarch64:
+    runs-on: ubuntu-latest
+    env:
+      IVPN_BUILD_SKIP_GLIBC_VER_CHECK: "1"
+    steps:
+      - name: Validate environment
+        run: |
+          echo "::debug ::build_arm64.yml payload was invoked by ${{ github.actor }}"
+          echo "::debug ::running on ${{ runner.os }}"
+          echo "::debug ::running on $(uname -m) architecture"
+          echo "::debug ::running on $(uname -r) kernel"
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18.x #lts/*
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Install Apt dependencies
+        run: |
+          sudo apt-get update -yqq
+          sudo apt-get install -yqq rpm libiw-dev ruby-full astyle git cmake gcc ninja-build libssl-dev python3-pytest python3-pytest-xdist unzip xsltproc doxygen graphviz python3-yaml valgrind
+
+      - name: Upgrade CMake and Ninja
+        uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: latest
+          ninjaVersion: latest
+
+      - name: Install fpm
+        run: |
+          gem install dotenv -v 2.8.1
+          gem install fpm
+
+      - name: Build CLI
+        run: |
+          echo "::group::Build CLI"
+          cd cli/References/Linux
+          # flush GITHUB_ACTIONS to bypass checks in build.sh
+          GITHUB_ACTIONS= ./build.sh -v $(cat ../../../ui/package.json | grep version | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g')
+
+      - name: Build UI
+        run: |
+          echo "::group::Build UI"
+          cd ui/References/Linux
+          # flush GITHUB_ACTIONS to bypass checks in build.sh
+          GITHUB_ACTIONS= ./build.sh -v $(cat ../../package.json | grep version | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g')
+
+      - name: Collect artifacts
+        run: |
+          mkdir -p buildoutput
+          mv cli/References/Linux/_out_bin/* buildoutput/
+          mv ui/References/Linux/_out_bin/* buildoutput/
